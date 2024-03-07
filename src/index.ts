@@ -4,10 +4,12 @@ export { schedule, Worker } from "listr2-scheduler";
 type RunOptions = {
   readonly reject?: boolean;
   readonly timestamp?: boolean;
+  readonly cwd?: string;
 };
 
 type ReadOptions = {
   readonly reject?: boolean | "status" | "stderr";
+  readonly cwd?: string;
 };
 
 type ToolkitLogger = {
@@ -61,9 +63,10 @@ export function attach(worker: Worker): Toolkit {
       const reject = settings?.reject ?? true;
       const verbose = worker.printer === "verbose";
       const timestamp = settings?.timestamp ?? true;
+      const cwd = settings?.cwd;
       const sub = Array.isArray(options)
-        ? execa(command, options, { reject })
-        : $({ reject })(tsa(command));
+        ? execa(command, options, { reject, cwd })
+        : $({ reject, cwd })(tsa(command));
       worker.reportStatus(
         Array.isArray(options) ? [command, ...options].join(" ") : command
       );
@@ -86,9 +89,10 @@ export function attach(worker: Worker): Toolkit {
         config != null ? config : !Array.isArray(options) ? options : undefined;
       const reject = [true, "status"].includes(settings?.reject ?? true);
       const all = !(settings?.reject === "stderr" || settings?.reject === true);
+      const cwd = settings?.cwd;
       const sub = Array.isArray(options)
-        ? execa(command, options, { reject, all })
-        : $({ reject, all })(tsa(command));
+        ? execa(command, options, { reject, all, cwd })
+        : $({ reject, all, cwd })(tsa(command));
       const result = await sub;
       if (!all) {
         if (result.stderr.trim().length > 0) {
