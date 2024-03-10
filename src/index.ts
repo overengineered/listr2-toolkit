@@ -48,7 +48,7 @@ export function attach(worker: Worker): Toolkit {
   }
   log.e = (...args: unknown[]) => print(process.stderr, args);
   log.v = (...args: unknown[]) =>
-    worker.printer === "verbose" && print(process.stderr, args);
+    worker.printer === "verbose" && print(process.stdout, args);
 
   return {
     log,
@@ -71,10 +71,17 @@ export function attach(worker: Worker): Toolkit {
         Array.isArray(options) ? [command, ...options].join(" ") : command
       );
       if (verbose) {
-        const cnfo = { getTag: worker.getTag, timestamp };
-        sub.stdout && decorateLines(cnfo, sub.stdout, process.stdout);
-        const cnfe = { getTag: () => `E${worker.getTag()}`, timestamp };
-        sub.stderr && decorateLines(cnfe, sub.stderr, process.stderr);
+        const configOut = { getTag: worker.getTag, timestamp };
+        const configErr = {
+          getTag: () => {
+            const tag = worker.getTag({ colored: true });
+            const p = tag.indexOf("@");
+            return p > 0 ? tag.slice(0, p) + "E" + tag.slice(p) : "E" + tag;
+          },
+          timestamp,
+        };
+        sub.stdout && decorateLines(configOut, sub.stdout, process.stdout);
+        sub.stderr && decorateLines(configErr, sub.stderr, process.stderr);
       }
       const result = await sub;
       return result.exitCode;
@@ -110,9 +117,9 @@ const verbosity = /^-(-verbose|.*v.*)$/;
 export function selectPrinter(
   args: string[],
   forceVerbose?: unknown
-): "verbose" | "vivid" {
+): "verbose" | "summary" {
   const verbose = forceVerbose || args.some((value) => value.match(verbosity));
-  return verbose ? "verbose" : "vivid";
+  return verbose ? "verbose" : "summary";
 }
 
 function tsa(value: string): TemplateStringsArray {
